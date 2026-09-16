@@ -7,62 +7,64 @@ st.set_page_config(
 )
 
 
-# 1. تحميل البيانات أوتوماتيكياً من ملف الـ CSV المرفوع
+# 1. Load dataset from GitHub repository
 @st.cache_data
 def load_data():
-  # اسم الملف المطابق لما هو مرفوع على GitHub
   return pd.read_csv("movielens_merged_2.csv")
 
 
 try:
   df = load_data()
 
-  # استخراج جميع التصنيفات (Genres) الموجودة في البيانات
+  # Extract all available genres
   genres_set = set()
   if "genres" in df.columns:
     for g in df["genres"].dropna():
       genres_set.update(g.split("|"))
   all_genres = sorted(list(genres_set))
 
-  # واجهة التطبيق
+  # Application Header
   st.title("🎬 Movie Recommendation System")
-  st.write("واجهة تفاعلية لتوقّع التقييمات واقتراح الأفلام بناءً على تفضيلاتك")
+  st.write(
+      "Interactive UI for predicting ratings and recommending movies based on"
+      " your preferences."
+  )
 
   st.divider()
 
-  # تقسيم الشاشة لأعمدة تفاعلية
+  # UI Layout Split
   col1, col2 = st.columns([1, 2])
 
   with col1:
-    st.subheader("⚙️ خيارات التصفية")
+    st.subheader("⚙️ Filter Options")
 
-    # اختيار المستخدم
+    # User Selection
     selected_user = st.number_input(
-        "أدخل معرف المستخدم (User ID):",
+        "Enter User ID:",
         min_value=int(df["userId"].min()),
         max_value=int(df["userId"].max()),
         value=int(df["userId"].min()),
     )
 
-    # قائمة منسدلة (Multiselect Dropdown) للتصنيفات
+    # Genre Dropdown Selection
     selected_genres = st.multiselect(
-        "تصفية حسب التصنيف (Genre):",
+        "Filter by Genre:",
         options=all_genres,
-        placeholder="اختر التصنيفات...",
+        placeholder="Select genres...",
     )
 
-    # عدد التوصيات المطلوبة
+    # Number of Recommendations Slider
     num_recommendations = st.slider(
-        "عدد التوصيات المطلوبة:", min_value=1, max_value=20, value=5
+        "Number of Recommendations:", min_value=1, max_value=20, value=5
     )
 
-    btn_predict = st.button("🚀 عرض التوصيات والتوقعات", type="primary")
+    btn_predict = st.button("🚀 Get Recommendations", type="primary")
 
-  # 2. خوارزمية التوصية والتوقع (Collaborative Filtering)
+  # 2. Collaborative Filtering Recommendation Algorithm
   def recommend_movies(user_id, df, selected_genres, k=5, top_n=5):
     filtered_df = df.copy()
 
-    # فلترة حسب الـ Genres لو تم تحديدها
+    # Filter by genre if selected
     if selected_genres:
       pattern = "|".join(selected_genres)
       filtered_df = filtered_df[
@@ -76,10 +78,10 @@ try:
     if user_id not in user_item_matrix.index:
       return (
           None,
-          "المستخدم لا يمتلك تقييمات سابقة في هذه التصنيفات المختارة!",
+          "This user has no prior ratings in the selected genre(s)!",
       )
 
-    # حساب المتوسطات وتشابه جيب التمام (Cosine Similarity)
+    # Mean-centering & Cosine Similarity calculation
     user_means = user_item_matrix.mean(axis=1)
     matrix_centered = user_item_matrix.sub(user_means, axis=0).fillna(0)
 
@@ -120,7 +122,7 @@ try:
       centered_ratings = valid_neighbors - user_means.loc[valid_neighbors.index]
       predicted_rating = u_mean + (np.dot(weights, centered_ratings) / sim_sum)
 
-      # ضبط النطاق بين 0.5 و 5.0
+      # Scale bounds between 0.5 and 5.0
       predicted_ratings[movie] = round(
           min(5.0, max(0.5, predicted_rating)), 2
       )
@@ -128,20 +130,20 @@ try:
     rec_df = (
         pd.DataFrame(
             list(predicted_ratings.items()),
-            columns=["اسم الفيلم (Movie Title)", "التقييم المتوقع (Predicted Rating)"],
+            columns=["Movie Title", "Predicted Rating"],
         )
-        .sort_values(by="التقييم المتوقع (Predicted Rating)", ascending=False)
+        .sort_values(by="Predicted Rating", ascending=False)
         .head(top_n)
     )
 
     return rec_df, None
 
-  # عرض النتائج في العمود الثاني
+  # Results Column
   with col2:
-    st.subheader("🎯 التوقعات والأفلام المقترحة")
+    st.subheader("🎯 Predictions & Recommended Movies")
 
     if btn_predict:
-      with st.spinner("جاري حساب التوقعات..."):
+      with st.spinner("Calculating recommendations..."):
         results, error = recommend_movies(
             selected_user,
             df,
@@ -154,13 +156,11 @@ try:
           st.error(error)
         elif results.empty:
           st.warning(
-              "لم نجد توصيات كافية تطابق هذه الاختيارات، جربي اختيار تصنيفات أخرى."
+              "No sufficient recommendations found. Try adjusting genre filters."
           )
         else:
-          st.success("تم حساب التوقعات بنجاح!")
+          st.success("Recommendations generated successfully!")
           st.dataframe(results, use_container_width=True)
 
 except Exception as e:
-  st.error(
-      f"تأكدي من رفع ملف 'movielens_merged_2.csv' داخل المستودع على GitHub. الخطأ: {e}"
-  )
+  st.error(f"Error loading dataset: {e}")
