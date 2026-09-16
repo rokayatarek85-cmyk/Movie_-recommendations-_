@@ -7,17 +7,17 @@ st.set_page_config(
 )
 
 
-# 1. تحميل البيانات أوتوماتيكياً في الذاكرة لتسريع الأداء
+# 1. تحميل البيانات أوتوماتيكياً من ملف الـ CSV المرفوع
 @st.cache_data
 def load_data():
-  # تأكدي إن اسم الملف مطابق للموجود على GitHub
-  return pd.read_csv("movielens_merged.csv")
+  # اسم الملف المطابق لما هو مرفوع على GitHub
+  return pd.read_csv("movielens_merged_2.csv")
 
 
 try:
   df = load_data()
 
-  # استخراج قائمة كل الـ Genres الموجودة في البيانات
+  # استخراج جميع التصنيفات (Genres) الموجودة في البيانات
   genres_set = set()
   if "genres" in df.columns:
     for g in df["genres"].dropna():
@@ -44,7 +44,7 @@ try:
         value=int(df["userId"].min()),
     )
 
-    # قائمة منسدلة (Multiselect Dropdown) للـ Genres
+    # قائمة منسدلة (Multiselect Dropdown) للتصنيفات
     selected_genres = st.multiselect(
         "تصفية حسب التصنيف (Genre):",
         options=all_genres,
@@ -60,8 +60,9 @@ try:
 
   # 2. خوارزمية التوصية والتوقع (Collaborative Filtering)
   def recommend_movies(user_id, df, selected_genres, k=5, top_n=5):
-    # تصفية البيانات حسب الـ Genres لو تم اختيارها
     filtered_df = df.copy()
+
+    # فلترة حسب الـ Genres لو تم تحديدها
     if selected_genres:
       pattern = "|".join(selected_genres)
       filtered_df = filtered_df[
@@ -78,7 +79,7 @@ try:
           "المستخدم لا يمتلك تقييمات سابقة في هذه التصنيفات المختارة!",
       )
 
-    # حساب المتوسطات والـ Cosine Similarity
+    # حساب المتوسطات وتشابه جيب التمام (Cosine Similarity)
     user_means = user_item_matrix.mean(axis=1)
     matrix_centered = user_item_matrix.sub(user_means, axis=0).fillna(0)
 
@@ -118,7 +119,8 @@ try:
 
       centered_ratings = valid_neighbors - user_means.loc[valid_neighbors.index]
       predicted_rating = u_mean + (np.dot(weights, centered_ratings) / sim_sum)
-      # حصر التقييم بين 0.5 و 5
+
+      # ضبط النطاق بين 0.5 و 5.0
       predicted_ratings[movie] = round(
           min(5.0, max(0.5, predicted_rating)), 2
       )
@@ -139,7 +141,7 @@ try:
     st.subheader("🎯 التوقعات والأفلام المقترحة")
 
     if btn_predict:
-      with st.spinner("جاري حساب التوقعات في ثوانٍ..."):
+      with st.spinner("جاري حساب التوقعات..."):
         results, error = recommend_movies(
             selected_user,
             df,
@@ -152,7 +154,7 @@ try:
           st.error(error)
         elif results.empty:
           st.warning(
-              "لم نجد توصيات كافية تطابق هذه الاختيارات، جربي تقليل التصنيفات."
+              "لم نجد توصيات كافية تطابق هذه الاختيارات، جربي اختيار تصنيفات أخرى."
           )
         else:
           st.success("تم حساب التوقعات بنجاح!")
@@ -160,5 +162,5 @@ try:
 
 except Exception as e:
   st.error(
-      f"تأكدي من وجود ملف 'movielens_merged.csv' داخل المستودع على GitHub. التفاصيل: {e}"
+      f"تأكدي من رفع ملف 'movielens_merged_2.csv' داخل المستودع على GitHub. الخطأ: {e}"
   )
