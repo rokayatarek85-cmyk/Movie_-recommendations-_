@@ -10,10 +10,10 @@ st.write(
 )
 
 
-# تحميل البيانات أوتوماتيكياً من السيرفر مع حفظها في الذاكرة لتسريع التطبيق
+# تحميل البيانات أوتوماتيكياً بدون الحاجة لزر رفع
 @st.cache_data
 def load_data():
-  # استبدلي 'movielens_merged.csv' باسم ملف البيانات الذي رفعتيه على GitHub بالضبط
+  # اكتب اسم ملف الـ CSV المرفوع على GitHub بالضبط بين التنصيص
   return pd.read_csv('movielens_merged.csv')
 
 
@@ -21,7 +21,6 @@ try:
   df = load_data()
   st.success("✅ تم تحميل البيانات تلقائياً بنجاح!")
 
-  # دالة حساب التوصيات
   def recommend_movies(user_id, df, k=5, top_n=5):
     user_item_matrix = df.pivot_table(
         index='userId', columns='title', values='rating'
@@ -111,5 +110,5 @@ try:
 
 except Exception as e:
   st.error(
-      f"لم يتم العثور على ملف البيانات على GitHub. تأكدي من رفع الملف بنفس الاسم المحدد في الكود. التفاصيل: {e}"
+      f"تأكدي من رفع ملف الـ CSV على GitHub بنفس الاسم المحدد في الكود ('movielens_merged.csv'). الخطأ: {e}"
   )
